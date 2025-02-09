@@ -3,8 +3,6 @@ import Foundation
 import Combine
 import CoreBluetooth
 import LiveViewNative
-import LiveViewNativeCore
-import LiveViewNativeCoreFFI
 
 final class BLEClientCoordinator: NSObject, ObservableObject {
     
@@ -22,7 +20,7 @@ final class BLEClientCoordinator: NSObject, ObservableObject {
     
     var bleManager = BluetoothManager()
     private var cancellables: Set<AnyCancellable> = [] // Store Combine subscriptions
-    var discoveredPeripherals: [UUID: PeripheralDisplayData] = [:] // store objects
+    //var discoveredPeripherals: [UUID: PeripheralDisplayData] = [:] // store objects
     
     override init() {
         super.init()
@@ -109,21 +107,18 @@ final class BLEClientCoordinator: NSObject, ObservableObject {
         print("Coordinator: Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(rssi)")
         
         //var serviceArray = serviceDataFromCB(peripheral.services)
-        
         //let newPeripheralData = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue, services: serviceArray)
-        let newPeripheralData = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue)
+        //let newPeripheralData =
         
         // Update discoveredPeripherals dictionary
-        discoveredPeripherals[peripheral.identifier] = newPeripheralData
+        //discoveredPeripherals[peripheral.identifier] = newPeripheralData
         
-        peripheralDiscovered = newPeripheralData  // Trigger an update to the UI
+        peripheralDiscovered = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue)
     }
     
     private func handleDidConnectPeripheral(_ peripheral: CBPeripheral) {
         print("Coordinator: Connected to \(peripheral.name ?? "Unknown Device")")
-        
-        let serviceArray = serviceDataFromCB(peripheral.services)
-        peripheralConnected = PeripheralDisplayData.init(peripheral: peripheral, services: serviceArray)
+        peripheralConnected = PeripheralDisplayData.init(peripheral: peripheral)
         // Start discovering services or characteristics, or anything else
     }
     
@@ -142,27 +137,26 @@ final class BLEClientCoordinator: NSObject, ObservableObject {
         print("Coordinator: didUpdateRSSI from \(peripheral.name ?? "Unknown Device")")
         
         // Update the appropriate PeripheralDisplayData object (either discovered or connected) with the new RSSI value
-        if var existingData = discoveredPeripherals[peripheral.identifier] {
+        /*if var existingData = discoveredPeripherals[peripheral.identifier] {
             existingData.rssi = peripheral.rssi?.intValue ?? 0 // Update RSSI (optional unwrapping)
             discoveredPeripherals[peripheral.identifier] = existingData // Update the dictionary
             peripheralDiscovered = existingData  // Trigger an update to the UI if this value is displayed.
-        }
+        }*/
+        
+        
     }
     
     deinit{
         for cancellable in cancellables{
             cancellable.cancel()
         }
-        print("Clean and happy to go!")
     }
 }
-
 
 enum ScanStateEnum {
     case scanning
     case stopped
 }
-
 
 func mapManagerStateToEnum(state: CBManagerState) -> CentralStateEnum {
     switch state {
@@ -192,13 +186,12 @@ enum CentralStateEnum {
     case resetting
 }
 
-
-func serviceDataFromCB(_ services: [CBService]?) -> [ServiceDisplayData] {
+/*func serviceDataFromCB(_ services: [CBService]?) -> [ServiceDisplayData] {
     guard let services = services else {
         return [] // Return an empty array if services is nil
     }
     return services.map { ServiceDisplayData(service: $0) }
-}
+}*/
 
 
 struct PeripheralDisplayData: Identifiable {
@@ -213,18 +206,10 @@ struct PeripheralDisplayData: Identifiable {
         self.name = peripheral.name ?? "Unnamed Peripheral"
         self.rssi = -128
         self.state = peripheral.state
-        //self.services = []
-    }
-    
-    init(peripheral: CBPeripheral, services: [ServiceDisplayData] = []) {
-        self.id = peripheral.identifier
-        self.name = peripheral.name ?? "Unnamed Peripheral"
-        self.rssi = -128
-        self.state = peripheral.state
         //self.services = services
     }
     
-    init(peripheral: CBPeripheral, rssi: Int = 0, services: [ServiceDisplayData] = []) {
+    init(peripheral: CBPeripheral, rssi: Int = 0) {
         self.id = peripheral.identifier
         self.name = peripheral.name ?? "Unnamed Peripheral"
         self.rssi = rssi
@@ -253,7 +238,6 @@ struct CharacteristicDisplayData: Identifiable {
     let name: String
     
     init(peripheral: CBPeripheral, characteristic: CBCharacteristic) {
-        // TODO
         self.peripheralID = peripheral.identifier.uuidString
         self.peripheralName = peripheral.name ?? "Unnamed Peripheral"
         self.uuid = characteristic.uuid.uuidString
@@ -277,7 +261,6 @@ struct CharacteristicValueDisplayData: Identifiable {
         self.value = value
     }
 }
-
 
 extension Encodable {
     func toJsonString() -> String? {

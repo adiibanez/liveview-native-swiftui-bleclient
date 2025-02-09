@@ -26,7 +26,8 @@ struct BLEClient<Root: RootRegistry>: View {
     
     var body: some View {
         NavigationView { // Added NavigationView
-            $liveElement.children()
+            Text("Hello")
+            //$liveElement.children()
             /*VStack() {
                 
                 List {

@@ -9,7 +9,7 @@ public class BluetoothUtils {
     // Add this helper function to expand short UUIDs
     static func expandShortUUID(_ uuidString: String) -> String {
         if uuidString.count == 4 {
-            var expandedUuidString = "0000\(uuidString)-0000-1000-8000-00805F9B34FB".uppercased()
+            let expandedUuidString = "0000\(uuidString)-0000-1000-8000-00805F9B34FB".uppercased()
             print("Expanded: uuidString to \(expandedUuidString)")
             return expandedUuidString
         } else {
@@ -151,10 +151,7 @@ public class BluetoothUtils {
     }
 
     class func decodeValue(for uuid: CBUUID, data: Data) -> Any? {
-        let uuidString = uuid.uuidString
-        var expandedUuidString = expandShortUUID(uuidString)
-        
-        if uuid == CBUUID(string: "00002a37-0000-1000-8000-00805f9b34fb") {
+        if expandShortUUID(uuid.uuidString) == CBUUID(string: "00002a37-0000-1000-8000-00805f9b34fb").uuidString {
             // Decode as heart rate
             return decodeHeartRate(data: data) //decode with custom method
         }

@@ -11,7 +11,7 @@ public extension Addons {
     @_documentation(visibility: public)
     #endif
     @Addon
-    public struct Ble<Root: RootRegistry> {
+    struct Ble<Root: RootRegistry> {
         public enum TagName: String {
             case bleClient = "BLEClient"
         }
