@@ -81,7 +81,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        .onChange(of: coordinator.peripheralDiscovered) {peripheral in
+        /*.onChange(of: coordinator.peripheralDiscovered) {peripheral in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -136,11 +136,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        
-        
-        
-        
-        
+        */
         
         
         //.onChange(of: coordinator.centralManager.isScanning) {
