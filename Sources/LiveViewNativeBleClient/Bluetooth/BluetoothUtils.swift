@@ -116,7 +116,7 @@ public class BluetoothUtils {
         return uuidMap[expandedUuidString] != nil
     }
 
-    class func decodeHeartRate(data: Data) -> String? {
+    private class func decodeHeartRate(data: Data) -> String? {
         print("Heartrate data count: \(data.count)")
         guard data.count > 0 else {
             print("Data is too short to read heartrate (no flags)")
@@ -152,12 +152,19 @@ public class BluetoothUtils {
 
     class func decodeValue(for uuid: CBUUID, data: Data) -> Any? {
         let uuidString = uuid.uuidString
-        let expandedUuidString = expandShortUUID(uuidString)
+        var expandedUuidString = expandShortUUID(uuidString)
+        
+        if uuid == CBUUID(string: "00002a37-0000-1000-8000-00805f9b34fb") {
+            // Decode as heart rate
+            return decodeHeartRate(data: data) //decode with custom method
+        }
+        
         guard let dataType = dataType(for: uuid) else {
             print("Unknown data type for UUID: \(uuid)")
             return nil
         }
-
+        
+        
         switch dataType {
         case .uint8:
             return data.uint8Value

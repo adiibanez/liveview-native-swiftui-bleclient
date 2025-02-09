@@ -24,12 +24,20 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     @Published public var discoveredServices: [UUID: [CBUUID: CBService]] = [:] // [peripheralUUID: [serviceUUID: CBService]]
     @Published public var discoveredCharacteristics: [UUID: [CBUUID: [CBUUID: CBCharacteristic]]] = [:] // [peripheralUUID: [serviceUUID:
     //@Published public var characteristicValueUpdate:
+    
+    let didStartScan = PassthroughSubject<Void, Never>()
+    let didStopScan = PassthroughSubject<Void, Never>()
+    
+    let didStateChange = PassthroughSubject<CBManagerState, Never>()
+    
     // Publishers for specific events
-    let didDiscoverPeripheral = PassthroughSubject<CBPeripheral, Never>()
+    let didDiscoverPeripheral = PassthroughSubject<(CBPeripheral, NSNumber), Never>()
     let didConnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
     let didDisconnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
     let didReceiveData = PassthroughSubject<(CBPeripheral, CBUUID, String), Never>() // peripheral, characteristic, data
     let didUpdateRSSI = PassthroughSubject<CBPeripheral, Never>()
+    
+    let didDiscoverCharacteristic = PassthroughSubject<(CBPeripheral, CBService, CBCharacteristic), Never>()
     
     private var serviceUUID: CBUUID?
     private var characteristicUUID: CBUUID?
@@ -45,6 +53,10 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         
         
 #if targetEnvironment(simulator) && (os(iOS) || os(watchOS))
+        
+        
+        print("Starting BLE Mocking mode ... ")
+        
         if #available(iOS 13.0, *) {
             // Example how the authorization can be set and changed.
             /*
@@ -98,6 +110,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         @unknown default:
             print("Bluetooth connectionState unknown")
         }
+        
+        didStateChange.send(central.state)
     }
     
     func scanForPeripherals() {
@@ -115,6 +129,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         print("Scanning for peripherals...")
         discoveredPeripherals.removeAll() // Clear existing peripherals
         centralManager.scanForPeripherals(withServices: nil, options: nil) // Scan all services
+        didStartScan.send()
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
@@ -146,7 +161,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
                 self.discoveredPeripherals[peripheral.identifier] = peripheral
                 peripheral.delegate = self // SET DELEGATE BEFORE calling readRSSI()
                 Task{
-                    //await self.updateRSSI(peripheral: peripheral)
+                    //.updateRSSI(peripheral: peripheral)
                     //self.updatePeripheralDisplayData()
                 }
                 //centralManager.stopScan()
@@ -161,7 +176,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             print("Discovered peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI), but not connecting to it.")
         }
         
-        didDiscoverPeripheral.send(peripheral) // Notify of the discovered peripheral
+        didDiscoverPeripheral.send((peripheral, RSSI)) // Notify of the discovered peripheral
     }
     
     func connect(peripheral: CBPeripheral, serviceUUID: CBUUID? = nil, characteristicUUID: CBUUID? = nil) {
@@ -197,8 +212,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         peripheralConnectionState[peripheral.identifier] = "Disconnected"  // Update state
     }
     
-    // MARK: - Peripheral Delegate Methods
     
+    
+    /*
+     
+     Peripheral delegates
+     
+     */
+        
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let error = error {
             print("Error discovering services: \(error.localizedDescription)")
@@ -231,27 +252,21 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         for characteristic in characteristics {
             print("\(peripheral.name ?? "Unnamed Peripheral") Discovered characteristic: \(BluetoothUtils.name(for: characteristic.uuid)) Notifying: \(characteristic.isNotifying)")
         
-        
             BluetoothUtils.printCharacteristicProperties(characteristic: characteristic, peripheral: peripheral)
             
             characteristicsDictionary[characteristic.uuid] = characteristic
             
-            //if(characteristic.isNotifying) {
-            
-            if characteristic.properties.contains(.notify) {
-                peripheral.setNotifyValue(true, for: characteristic) //This method should only becalled on Characteristics that have Notify
-            }
-            
+            // initial read for slow notifiers
             if characteristic.properties.contains(.read) {
-                //peripheral.readValue(descriptor: characteristic.descriptors)
                 peripheral.readValue(for: characteristic)
-                //var stringValue = BluetoothUtils.decodeValue(for: characteristic.uuid, data: )
-                
-                //print("\(BluetoothUtils.name(for: characteristic.uuid)) read value: \(characteristic.value)")
             }
             
-            
-            
+            // subscribe to notifications
+            if characteristic.properties.contains(.notify) {
+                peripheral.setNotifyValue(true, for: characteristic) //This method should only becalled on Characteristics that have
+            }
+            // notify
+            didDiscoverCharacteristic.send((peripheral, service, characteristic))
         }
         //This now associates what characteristic to what service on what peripheral
         discoveredCharacteristics[peripheral.identifier]?[service.uuid] = characteristicsDictionary
@@ -268,17 +283,13 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             return
         }
         
-        let sensorName = peripheral.name ?? "Unnamed"
-        let characteristicUuid = characteristic.uuid.uuidString
         var stringValue: String? = nil
         
         let uuid = characteristic.uuid
         
-        var characteristicName = BluetoothUtils.name(for: uuid)
+        let characteristicName = BluetoothUtils.name(for: uuid)
         
-        if uuid == CBUUID(string: "00002a37-0000-1000-8000-00805f9b34fb") {
-            stringValue = BluetoothUtils.decodeHeartRate(data: data)
-        } else if let decoded = BluetoothUtils.decodeValue(for: uuid, data: data) {
+        if let decoded = BluetoothUtils.decodeValue(for: uuid, data: data) {
             stringValue = String(describing: decoded) // Convert to string
         } else {
             print("Cannot decode data from \(uuid.uuidString)")
@@ -290,41 +301,22 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
     
+    
+    func peripheralDidUpdateRSSI(_ peripheral: CBPeripheral, error: (any Error)?) {
+        print("Updated RSSI for \(peripheral) RSSI: \(peripheral.readRSSI())")
+        didUpdateRSSI.send(peripheral)
+    }
+    
+    
     //Disconnect a service.
     func disconnect(peripheral: CBPeripheral) {
         centralManager.cancelPeripheralConnection(peripheral)
+        didDisconnectPeripheral.send(peripheral)
     }
     
     func stopScan() {
         centralManager.stopScan()
+        didStopScan.send()
     }
     
-    //Data Structures
-    struct PeripheralDisplayData: Identifiable {
-        let id: UUID
-        let name: String
-        let rssi: Int
-        let state: CBPeripheralState
-        let services: [ServiceDisplayData]
-    }
-    
-    struct ServiceDisplayData: Identifiable {
-        let id: UUID
-        let name: String
-        let characteristics: [CharacteristicDisplayData]
-    }
-    
-    struct CharacteristicDisplayData: Identifiable {
-        let id = UUID()
-        let uuid: String
-        let name: String
-    }
-    
-    struct CharacteristicValueDisplayData: Identifiable {
-        let id = UUID()
-        let peripheralUUID: UUID
-        let characteristicUUID: UUID
-        let uuid: String
-        let value: String
-    }
 }

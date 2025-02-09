@@ -1,0 +1,29 @@
+{
+  "configurations" : [
+    {
+      "id" : "3AA8C895-2A25-4BF7-BDB1-7B638CB997F1",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "commandLineArgumentEntries" : [
+      {
+        "argument" : "",
+        "enabled" : false
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "LiveViewNativeBleClientTests",
+        "name" : "LiveViewNativeBleClientTests"
+      }
+    }
+  ],
+  "version" : 1
+}

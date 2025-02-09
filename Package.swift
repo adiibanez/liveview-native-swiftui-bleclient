@@ -18,7 +18,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/adiibanez/liveview-client-swiftui.git", from: "0.4.0-rc.0-pushevents"),
+        .package(url: "https://github.com/adiibanez/liveview-client-swiftui.git", from: "0.4.0-rc.0.core-events"),
         .package(url: "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git", from: "0.18.0")
     ],
     targets: [
@@ -29,6 +29,13 @@ let package = Package(
             dependencies: [
                 .product(name: "LiveViewNative", package: "liveview-client-swiftui"),
                 .product(name: "CoreBluetoothMock", package: "IOS-CoreBluetooth-Mock")
-            ]),
+            ]
+        ),
+        .testTarget(
+                    name: "LiveViewNativeBleClientTests",
+                    dependencies: ["LiveViewNativeBleClient"],
+                    resources: [.process("TestInfo.plist")] // Resources/
+                )
+        
     ]
 )
