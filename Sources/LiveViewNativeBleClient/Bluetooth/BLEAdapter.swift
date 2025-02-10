@@ -99,12 +99,12 @@ final class BLEAdapter: NSObject, ObservableObject {
     
     
     private func handleDidStateChange(_ state: CBManagerState) {
-        print("Coordinator: State changed \(state)")
+        print("BLEAdapter: State changed \(state)")
         centralStateChanged = mapManagerStateToEnum(state: state)
     }
     
     private func handleDidDiscoverPeripheral(_ peripheral: CBPeripheral, _ rssi: NSNumber) {
-        print("Coordinator: Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(rssi)")
+        print("BLEAdapter: Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(rssi)")
         
         //var serviceArray = serviceDataFromCB(peripheral.services)
         //let newPeripheralData = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue, services: serviceArray)
@@ -117,24 +117,25 @@ final class BLEAdapter: NSObject, ObservableObject {
     }
     
     private func handleDidConnectPeripheral(_ peripheral: CBPeripheral) {
-        print("Coordinator: Connected to \(peripheral.name ?? "Unknown Device")")
+        print("BLEAdapter: Connected to \(peripheral.name ?? "Unknown Device")")
         peripheralConnected = PeripheralDisplayData.init(peripheral: peripheral)
         // Start discovering services or characteristics, or anything else
     }
     
     private func handleDidDisconnectPeripheral(_ peripheral: CBPeripheral) {
-        print("Coordinator: Disconnected from \(peripheral.name ?? "Unknown Device")")
+        print("BLEAdapter: Disconnected from \(peripheral.name ?? "Unknown Device")")
         peripheralDisconnected = PeripheralDisplayData.init(peripheral: peripheral)
         //Clean up anything.
     }
     
     private func handleDidReceiveData(_ peripheral: CBPeripheral, _ characteristicUUID: CBUUID, _ value: String) {
-        print("Coordinator: Received data from \(peripheral.name ?? "Unknown Device"), characteristic: \(characteristicUUID), value: \(value)")
+        print("BLEAdapter: Received data from \(peripheral.name ?? "Unknown Device"), characteristic: \(characteristicUUID), value: \(value)")
+        characteristicValueChanged = nil
         characteristicValueChanged = CharacteristicValueDisplayData.init(peripheral: peripheral, characteristicUUID: characteristicUUID, value: value)
     }
     
     private func handleDidUpdateRSSI(_ peripheral: CBPeripheral) {
-        print("Coordinator: didUpdateRSSI from \(peripheral.name ?? "Unknown Device")")
+        print("BLEAdapter: didUpdateRSSI from \(peripheral.name ?? "Unknown Device")")
         
         // Update the appropriate PeripheralDisplayData object (either discovered or connected) with the new RSSI value
         /*if var existingData = discoveredPeripherals[peripheral.identifier] {

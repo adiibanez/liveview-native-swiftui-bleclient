@@ -55,7 +55,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 #if targetEnvironment(simulator) && (os(iOS) || os(watchOS))
         
         
-        print("Starting BLE Mocking mode ... ")
+        print("BluetoothManager Starting BLE Mocking mode ... ")
         
         if #available(iOS 13.0, *) {
             // Example how the authorization can be set and changed.
@@ -95,20 +95,20 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            print("Bluetooth is powered on")
+            print("BluetoothManager Bluetooth is powered on")
             //scanForPeripherals()
         case .poweredOff:
-            print("Bluetooth is powered off")
+            print("BluetoothManager Bluetooth is powered off")
         case .unauthorized:
-            print("Bluetooth is unauthorized")
+            print("BluetoothManager Bluetooth is unauthorized")
         case .unsupported:
-            print("Bluetooth is unsupported")
+            print("BluetoothManager Bluetooth is unsupported")
         case .unknown:
-            print("Bluetooth is in an unknown state")
+            print("BluetoothManager Bluetooth is in an unknown state")
         case .resetting:
-            print("Bluetooth is resetting")
+            print("BluetoothManager Bluetooth is resetting")
         @unknown default:
-            print("Bluetooth connectionState unknown")
+            print("BluetoothManager Bluetooth connectionState unknown")
         }
         
         didStateChange.send(central.state)
@@ -117,23 +117,23 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     func scanForPeripherals() {
         
         guard centralManager.state == .poweredOn else {
-            print("BLuetooth not powered on")
+            print("BluetoothManager BLuetooth not powered on")
             return
         }
         
         guard centralManager.state != .unsupported else {
-            print("BLuetooth not supported")
+            print("BluetoothManager BLuetooth not supported")
             return
         }
         
-        print("Scanning for peripherals...")
+        print("BluetoothManager Scanning for peripherals...")
         discoveredPeripherals.removeAll() // Clear existing peripherals
         centralManager.scanForPeripherals(withServices: nil, options: nil) // Scan all services
         didStartScan.send()
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        print("Discovered \(peripheral.name ?? "Unknown Device")")
+        print("BluetoothManager Discovered \(peripheral.name ?? "Unknown Device")")
         discoveredPeripherals[peripheral.identifier] = peripheral
         peripheral.delegate = self // Ensure the delegate is set
         
@@ -142,7 +142,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         let prefixes = ["Movesense", "WH-", "PressureSensor", "FLexsense", "NordicHRM", "Thingy", "nRF Blinky", "Power"]
         
         guard let name = peripheral.name, prefixes.contains(where: { name.hasPrefix($0) }) else{
-            //print("Ignoring peripheral \(peripheral.name ?? "Unnamed"), since does not start with a known prefix \(prefixes)")
+            //print("BluetoothManager Ignoring peripheral \(peripheral.name ?? "Unnamed"), since does not start with a known prefix \(prefixes)")
             return
         }
         
@@ -157,7 +157,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
                 } else{
                     dataUpdate = "Error serializing data to JSON"
                 }
-                print("Discovered and connecting to peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI)")
+                print("BluetoothManager Discovered and connecting to peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI)")
                 self.discoveredPeripherals[peripheral.identifier] = peripheral
                 peripheral.delegate = self // SET DELEGATE BEFORE calling readRSSI()
                 Task{
@@ -173,14 +173,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             } else{
                 dataUpdate = "Error serializing data to JSON"
             }
-            print("Discovered peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI), but not connecting to it.")
+            print("BluetoothManager Discovered peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI), but not connecting to it.")
         }
         
         didDiscoverPeripheral.send((peripheral, RSSI)) // Notify of the discovered peripheral
     }
     
     func connect(peripheral: CBPeripheral, serviceUUID: CBUUID? = nil, characteristicUUID: CBUUID? = nil) {
-        print("Attempting to connect to \(peripheral.name ?? "Unknown Device")")
+        print("BluetoothManager Attempting to connect to \(peripheral.name ?? "Unknown Device")")
         centralManager.stopScan()
         
         peripheral.delegate = self // Ensure the delegate is set
@@ -192,7 +192,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     }
     
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        print("Successfully connected to: \(peripheral.name ?? "Unknown Device")")
+        print("BluetoothManager Successfully connected to: \(peripheral.name ?? "Unknown Device")")
         peripheralConnectionState[peripheral.identifier] = "Connected" // Update state
         if let serviceUUID = serviceUUID {
             peripheral.discoverServices([serviceUUID])
@@ -203,13 +203,15 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     }
     
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        print("Failed to connect to: \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
+        print("BluetoothManager Failed to connect to: \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
         peripheralConnectionState[peripheral.identifier] = "Failed to Connect" // Update state
+        
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        print("Disconnected from \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
+        print("BluetoothManager Disconnected from \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
         peripheralConnectionState[peripheral.identifier] = "Disconnected"  // Update state
+        didDisconnectPeripheral.send(peripheral)
     }
     
     
@@ -222,7 +224,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         if let error = error {
-            print("Error discovering services: \(error.localizedDescription)")
+            print("BluetoothManager Error discovering services: \(error.localizedDescription)")
             return
         }
         
@@ -230,18 +232,20 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         
         var serviceDictionary: [CBUUID: CBService] = [:] // Dictionary for current peripheral.
         for service in services {
-            print("Discovered service: \(service.uuid) for peripheral: \(peripheral.name ?? "Unnamed")")
+            print("BluetoothManager Discovered service: \(service.uuid) for peripheral: \(peripheral.name ?? "Unnamed")")
             serviceDictionary[service.uuid] = service
             peripheral.discoverCharacteristics(nil, for: service)
         }
         
         discoveredServices[peripheral.identifier] = serviceDictionary // Assign new dictionary to discoveredServices for this peripheral
         
+        
+        
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         if let error = error {
-            print("Error discovering characteristics: \(error.localizedDescription)")
+            print("BluetoothManager Error discovering characteristics: \(error.localizedDescription)")
             return
         }
         
@@ -250,7 +254,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         var characteristicsDictionary: [CBUUID: CBCharacteristic] = [:] //dictionary
         
         for characteristic in characteristics {
-            print("\(peripheral.name ?? "Unnamed Peripheral") Discovered characteristic: \(BluetoothUtils.name(for: characteristic.uuid)) Notifying: \(characteristic.isNotifying)")
+            print("BluetoothManager \(peripheral.name ?? "Unnamed Peripheral") Discovered characteristic: \(BluetoothUtils.name(for: characteristic.uuid)) Notifying: \(characteristic.isNotifying)")
         
             BluetoothUtils.printCharacteristicProperties(characteristic: characteristic, peripheral: peripheral)
             
@@ -274,12 +278,12 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let error = error {
-            print("Error reading value: \(error.localizedDescription)")
+            print("BluetoothManager Error reading value: \(error.localizedDescription)")
             return
         }
         
         guard let data = characteristic.value else {
-            print("No data")
+            print("BluetoothManager No data")
             return
         }
         
@@ -292,18 +296,18 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         if let decoded = BluetoothUtils.decodeValue(for: uuid, data: data) {
             stringValue = String(describing: decoded) // Convert to string
         } else {
-            print("Cannot decode data from \(uuid.uuidString)")
+            print("BluetoothManager Cannot decode data from \(uuid.uuidString)")
         }
         
         if let stringValue = stringValue {
-            print("Got characteristics update for \(characteristicName) value: \(stringValue) \(characteristic) ")
+            print("BluetoothManager Got characteristics update for \(characteristicName) value: \(stringValue) \(characteristic) ")
             didReceiveData.send((peripheral, characteristic.uuid, stringValue))
         }
     }
     
     
     func peripheralDidUpdateRSSI(_ peripheral: CBPeripheral, error: (any Error)?) {
-        print("Updated RSSI for \(peripheral) RSSI: \(peripheral.readRSSI())")
+        print("BluetoothManager Updated RSSI for \(peripheral) RSSI: \(peripheral.readRSSI())")
         didUpdateRSSI.send(peripheral)
     }
     
