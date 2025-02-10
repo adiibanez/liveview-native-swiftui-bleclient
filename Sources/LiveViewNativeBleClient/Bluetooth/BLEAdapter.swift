@@ -5,22 +5,21 @@ import CoreBluetooth
 import LiveViewNative
 
 final class BLEAdapter: NSObject, ObservableObject {
+    let  scanStateChangedEvent = PassthroughSubject<ScanStateEnum?, Never>()
+    let  centralStateChangedEvent = PassthroughSubject<CentralStateEnum?, Never>()
+    let  peripheralDiscoveredEvent = PassthroughSubject<(PeripheralDisplayData, Int), Never>()
+    let  peripheralConnectedEvent = PassthroughSubject<PeripheralDisplayData?, Never>()
+    let  peripheralDisconnectedEvent = PassthroughSubject<PeripheralDisplayData?, Never>()
+    let  peripheralRSSIUpdateEvent = PassthroughSubject<PeripheralDisplayData, Never>()
     
-    @Published var scanStateChanged: ScanStateEnum = .stopped
-    @Published var centralStateChanged: CentralStateEnum = .unknown
-    
-    @Published var peripheralDiscovered: PeripheralDisplayData? = nil
-    @Published var peripheralConnected: PeripheralDisplayData? = nil
-    @Published var peripheralDisconnected: PeripheralDisplayData? = nil
-    @Published var serviceDiscovered: ServiceDisplayData? = nil
-    @Published var characteristicDiscovered: CharacteristicDisplayData? = nil
-    @Published var characteristicValueChanged: CharacteristicValueDisplayData? = nil
+    let  serviceDiscoveredEvent = PassthroughSubject<ServiceDisplayData?, Never>()
+    let  characteristicDiscoveredEvent = PassthroughSubject<CharacteristicValueDisplayData?, Never>()
+    let  characteristicValueChangedEvent = PassthroughSubject<CharacteristicValueDisplayData?, Never>()
     
     //let bleCommandRegistry = BLECommandRegistry()
     
     var bleManager = BluetoothManager()
     private var cancellables: Set<AnyCancellable> = [] // Store Combine subscriptions
-    //var discoveredPeripherals: [UUID: PeripheralDisplayData] = [:] // store objects
     
     override init() {
         super.init()
@@ -31,8 +30,7 @@ final class BLEAdapter: NSObject, ObservableObject {
         
         bleCommandRegistry.register(commandName: "stop_scan") { parameters in
             self.stopScan()
-        }
-         */
+        }*/
         
         bleManager.didStateChange
             .receive(on: DispatchQueue.main) // Ensure updates happen on the main thread
@@ -41,7 +39,6 @@ final class BLEAdapter: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Subscribe to BluetoothManager's publishers
         bleManager.didDiscoverPeripheral
             .receive(on: DispatchQueue.main) // Ensure updates happen on the main thread
             .sink { [weak self] (peripheral, rssi) in
@@ -95,56 +92,38 @@ final class BLEAdapter: NSObject, ObservableObject {
         bleManager.stopScan()
     }
     
-    // MARK: - Event Handling Functions
-    
-    
     private func handleDidStateChange(_ state: CBManagerState) {
         print("BLEAdapter: State changed \(state)")
-        centralStateChanged = mapManagerStateToEnum(state: state)
+        centralStateChangedEvent.send( mapManagerStateToEnum(state: state) )
     }
     
     private func handleDidDiscoverPeripheral(_ peripheral: CBPeripheral, _ rssi: NSNumber) {
         print("BLEAdapter: Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(rssi)")
-        
-        //var serviceArray = serviceDataFromCB(peripheral.services)
-        //let newPeripheralData = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue, services: serviceArray)
-        //let newPeripheralData =
-        
-        // Update discoveredPeripherals dictionary
-        //discoveredPeripherals[peripheral.identifier] = newPeripheralData
-        
-        peripheralDiscovered = PeripheralDisplayData.init(peripheral: peripheral, rssi: rssi.intValue)
+        peripheralDiscoveredEvent.send((PeripheralDisplayData.init(peripheral: peripheral), rssi.intValue))
     }
     
     private func handleDidConnectPeripheral(_ peripheral: CBPeripheral) {
         print("BLEAdapter: Connected to \(peripheral.name ?? "Unknown Device")")
-        peripheralConnected = PeripheralDisplayData.init(peripheral: peripheral)
-        // Start discovering services or characteristics, or anything else
+        peripheralConnectedEvent.send(PeripheralDisplayData.init(peripheral: peripheral))
     }
     
     private func handleDidDisconnectPeripheral(_ peripheral: CBPeripheral) {
         print("BLEAdapter: Disconnected from \(peripheral.name ?? "Unknown Device")")
-        peripheralDisconnected = PeripheralDisplayData.init(peripheral: peripheral)
-        //Clean up anything.
+        peripheralDisconnectedEvent.send(PeripheralDisplayData.init(peripheral: peripheral))
     }
     
     private func handleDidReceiveData(_ peripheral: CBPeripheral, _ characteristicUUID: CBUUID, _ value: String) {
         print("BLEAdapter: Received data from \(peripheral.name ?? "Unknown Device"), characteristic: \(characteristicUUID), value: \(value)")
-        characteristicValueChanged = nil
-        characteristicValueChanged = CharacteristicValueDisplayData.init(peripheral: peripheral, characteristicUUID: characteristicUUID, value: value)
+        characteristicValueChangedEvent.send(CharacteristicValueDisplayData.init(peripheral: peripheral, characteristicUUID: characteristicUUID, value: value))
     }
     
     private func handleDidUpdateRSSI(_ peripheral: CBPeripheral) {
         print("BLEAdapter: didUpdateRSSI from \(peripheral.name ?? "Unknown Device")")
         
-        // Update the appropriate PeripheralDisplayData object (either discovered or connected) with the new RSSI value
-        /*if var existingData = discoveredPeripherals[peripheral.identifier] {
-            existingData.rssi = peripheral.rssi?.intValue ?? 0 // Update RSSI (optional unwrapping)
-            discoveredPeripherals[peripheral.identifier] = existingData // Update the dictionary
-            peripheralDiscovered = existingData  // Trigger an update to the UI if this value is displayed.
-        }*/
+        var peripheralData = PeripheralDisplayData.init(peripheral: peripheral)
+        peripheralData.rssi = peripheral.rssi?.intValue ?? 0
         
-        
+        peripheralRSSIUpdateEvent.send(peripheralData)
     }
     
     deinit{
@@ -194,7 +173,6 @@ func mapManagerStateToEnum(state: CBPeripheralState) -> PeripheralStateEnum {
     }
 }
 
-
 enum CentralStateEnum: Encodable {
     case poweredOn
     case poweredOff
@@ -234,10 +212,10 @@ struct PeripheralDisplayData: Identifiable, Equatable, Encodable {
         //self.services = services
     }
     
-    init(peripheral: CBPeripheral, rssi: Int = 0) {
+    init(peripheral: CBPeripheral, rssi: NSNumber = 0) {
         self.id = peripheral.identifier
         self.name = peripheral.name ?? "Unnamed Peripheral"
-        self.rssi = rssi
+        self.rssi = rssi.intValue
         self.state = mapManagerStateToEnum(state: peripheral.state)
         //self.services = services
     }

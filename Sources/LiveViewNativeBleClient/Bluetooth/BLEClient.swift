@@ -31,7 +31,6 @@ struct BLEClient<Root: RootRegistry>: View {
     @State private var isConnecting = false
     
     var body: some View {
-        
             Text("Hello")
             //$liveElement.children()
             /*VStack() {
@@ -64,7 +63,7 @@ struct BLEClient<Root: RootRegistry>: View {
             }
         }
         
-        .onChange(of: bleAdapter.scanStateChanged) { state in
+        .onReceive(bleAdapter.scanStateChangedEvent) { state in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -74,8 +73,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        
-        .onChange(of: bleAdapter.centralStateChanged) { state in
+        .onReceive(bleAdapter.centralStateChangedEvent) { state in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -85,7 +83,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        .onChange(of: bleAdapter.peripheralDiscovered) {peripheral in
+        .onReceive(bleAdapter.peripheralDiscoveredEvent) {(peripheral, rssi) in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -95,7 +93,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        .onChange(of: bleAdapter.peripheralConnected) {
+        .onReceive(bleAdapter.peripheralConnectedEvent) {
             peripheral in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
@@ -106,7 +104,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        .onChange(of: bleAdapter.serviceDiscovered) {
+        .onReceive(bleAdapter.serviceDiscoveredEvent) {
             service in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
@@ -118,7 +116,7 @@ struct BLEClient<Root: RootRegistry>: View {
             }
         }
         
-        .onChange(of: bleAdapter.characteristicDiscovered) {
+        .onReceive(bleAdapter.characteristicDiscoveredEvent) {
             characteristic in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
@@ -129,7 +127,8 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        .onChange(of: bleAdapter.characteristicValueChanged) {
+        //.onChange(of: bleAdapter.characteristicValueChanged) {
+        .onReceive(bleAdapter.characteristicValueChangedEvent) {
             characteristicValueUpdate in
             Task {
                 

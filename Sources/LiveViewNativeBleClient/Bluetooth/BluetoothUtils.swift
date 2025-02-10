@@ -161,7 +161,6 @@ public class BluetoothUtils {
             return nil
         }
         
-        
         switch dataType {
         case .uint8:
             return data.uint8Value

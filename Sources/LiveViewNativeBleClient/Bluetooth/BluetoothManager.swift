@@ -13,17 +13,13 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     
     private var centralManager: CBCentralManager!
     
-    @Published var dataUpdate: String = ""
+    let prefixes = ["Movesense", "WH-", "PressureSensor", "FLexsense", "NordicHRM", "Thingy", "nRF Blinky", "Power"]
     
-    // Published properties for external observation
-    @Published public var discoveredPeripherals: [UUID: CBPeripheral] = [:]
-    @Published public var peripheralConnectionState: [UUID: String] = [:] // Track connection state PER peripheral
-    @Published public var sensorData: String = "No Data"
+    var discoveredPeripherals: [UUID: CBPeripheral] = [:]
+    var peripheralConnectionState: [UUID: String] = [:] // Track connection state PER peripheral
     
-    // Data - Track services/characteristics PER PERIPHERAL
-    @Published public var discoveredServices: [UUID: [CBUUID: CBService]] = [:] // [peripheralUUID: [serviceUUID: CBService]]
-    @Published public var discoveredCharacteristics: [UUID: [CBUUID: [CBUUID: CBCharacteristic]]] = [:] // [peripheralUUID: [serviceUUID:
-    //@Published public var characteristicValueUpdate:
+    public var discoveredServices: [UUID: [CBUUID: CBService]] = [:] // [peripheralUUID: [serviceUUID: CBService]]
+    public var discoveredCharacteristics: [UUID: [CBUUID: [CBUUID: CBCharacteristic]]] = [:] // [peripheralUUID: [serviceUUID:
     
     let didStartScan = PassthroughSubject<Void, Never>()
     let didStopScan = PassthroughSubject<Void, Never>()
@@ -33,8 +29,9 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     // Publishers for specific events
     let didDiscoverPeripheral = PassthroughSubject<(CBPeripheral, NSNumber), Never>()
     let didConnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
+    let didFailToConnectPeripheral = PassthroughSubject<(CBPeripheral, Error?), Never>()
     let didDisconnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
-    let didReceiveData = PassthroughSubject<(CBPeripheral, CBUUID, String), Never>() // peripheral, characteristic, data
+    let didReceiveData = PassthroughSubject<(CBPeripheral, CBUUID, String), Never>()
     let didUpdateRSSI = PassthroughSubject<CBPeripheral, Never>()
     
     let didDiscoverCharacteristic = PassthroughSubject<(CBPeripheral, CBService, CBCharacteristic), Never>()
@@ -51,9 +48,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     override init() {
         super.init()
         
-        
 #if targetEnvironment(simulator) && (os(iOS) || os(watchOS))
-        
         
         print("BluetoothManager Starting BLE Mocking mode ... ")
         
@@ -91,7 +86,6 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         
     }
     
-    //MARK: CentralManagerDelegate
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
@@ -114,6 +108,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         didStateChange.send(central.state)
     }
     
+    /*func getKnownPeripherals() -> [CBPeripheral] {
+        centralManager.retrievePeripherals(withIdentifiers: [])
+    }
+    
+    func getConnectedPeripherals() -> [CBPeripheral] {
+        centralManager.retrieveConnectedPeripherals(withServices: [])
+    }*/
+    
     func scanForPeripherals() {
         
         guard centralManager.state == .poweredOn else {
@@ -133,50 +135,27 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     }
     
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        print("BluetoothManager Discovered \(peripheral.name ?? "Unknown Device")")
+        print("BluetoothManager Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(RSSI)")
         discoveredPeripherals[peripheral.identifier] = peripheral
         peripheral.delegate = self // Ensure the delegate is set
-        
         //peripheral.readRSSI()
-        
-        let prefixes = ["Movesense", "WH-", "PressureSensor", "FLexsense", "NordicHRM", "Thingy", "nRF Blinky", "Power"]
         
         guard let name = peripheral.name, prefixes.contains(where: { name.hasPrefix($0) }) else{
             //print("BluetoothManager Ignoring peripheral \(peripheral.name ?? "Unnamed"), since does not start with a known prefix \(prefixes)")
             return
         }
         
+        didDiscoverPeripheral.send((peripheral, RSSI))
+        
         if let name = peripheral.name {
-            
             if prefixes.contains(where: { name.hasPrefix($0) }) {
-                if let jsonData = try? JSONSerialization.data(withJSONObject: [
-                    "peripheral_name": (peripheral.name ?? "Unnamed"),
-                    "RSSI": RSSI,
-                ], options: []) {
-                    dataUpdate = String(data: jsonData, encoding: .utf8) ?? ""
-                } else{
-                    dataUpdate = "Error serializing data to JSON"
-                }
                 print("BluetoothManager Discovered and connecting to peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI)")
                 self.discoveredPeripherals[peripheral.identifier] = peripheral
-                peripheral.delegate = self // SET DELEGATE BEFORE calling readRSSI()
-                Task{
-                    //.updateRSSI(peripheral: peripheral)
-                    //self.updatePeripheralDisplayData()
-                }
-                //centralManager.stopScan()
                 centralManager.connect(peripheral, options: nil)
             }}
         else{
-            if let jsonData = try? JSONSerialization.data(withJSONObject: ["peripheral_name": peripheral.name ?? "Unnamed", "RSSI": RSSI], options: []) {
-                dataUpdate = String(data: jsonData, encoding: .utf8) ?? ""
-            } else{
-                dataUpdate = "Error serializing data to JSON"
-            }
             print("BluetoothManager Discovered peripheral: \(peripheral.name ?? "Unnamed"), RSSI: \(RSSI), but not connecting to it.")
         }
-        
-        didDiscoverPeripheral.send((peripheral, RSSI)) // Notify of the discovered peripheral
     }
     
     func connect(peripheral: CBPeripheral, serviceUUID: CBUUID? = nil, characteristicUUID: CBUUID? = nil) {
@@ -206,6 +185,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         print("BluetoothManager Failed to connect to: \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
         peripheralConnectionState[peripheral.identifier] = "Failed to Connect" // Update state
         
+        
+        didFailToConnectPeripheral.send((peripheral, error))
     }
     
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
@@ -237,10 +218,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             peripheral.discoverCharacteristics(nil, for: service)
         }
         
-        discoveredServices[peripheral.identifier] = serviceDictionary // Assign new dictionary to discoveredServices for this peripheral
-        
-        
-        
+        discoveredServices[peripheral.identifier] = serviceDictionary
+
     }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
@@ -305,14 +284,11 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
     }
     
-    
     func peripheralDidUpdateRSSI(_ peripheral: CBPeripheral, error: (any Error)?) {
-        print("BluetoothManager Updated RSSI for \(peripheral) RSSI: \(peripheral.readRSSI())")
+        print("BluetoothManager Updated RSSI for \(peripheral) RSSI: \(peripheral.rssi)")
         didUpdateRSSI.send(peripheral)
     }
     
-    
-    //Disconnect a service.
     func disconnect(peripheral: CBPeripheral) {
         centralManager.cancelPeripheralConnection(peripheral)
         didDisconnectPeripheral.send(peripheral)
