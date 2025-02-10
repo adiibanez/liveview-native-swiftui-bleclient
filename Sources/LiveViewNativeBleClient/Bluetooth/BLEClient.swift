@@ -16,7 +16,14 @@ import LiveViewNativeCoreFFI
 @LiveElement
 struct BLEClient<Root: RootRegistry>: View {
     @LiveElementIgnored
-    @StateObject private var coordinator = BLEClientCoordinator()
+    @StateObject private var coordinator = BLECoordinator()
+    
+    @LiveElementIgnored
+    var bleAdapter = BLEAdapter()
+    
+    @LiveElementIgnored
+    var jsonEncoder = JSONEncoder()
+    
     
     @_documentation(visibility: public)
     @LiveAttribute(.init(name: "phx-scan-devices"))
@@ -25,7 +32,7 @@ struct BLEClient<Root: RootRegistry>: View {
     @State private var isConnecting = false
     
     var body: some View {
-        NavigationView { // Added NavigationView
+        
             Text("Hello")
             //$liveElement.children()
             /*VStack() {
@@ -44,23 +51,21 @@ struct BLEClient<Root: RootRegistry>: View {
                 }
                 
             }*/
-            .navigationTitle("Discovered Devices") // Added navigation title
-        }
         // remote changes
         //.onChange(of: scanForPeripherals) {
         .onReceive(Just(scanForPeripherals)) { scanForPeripherals in
             if scanForPeripherals == true {
                 print("scanForPeripherals true ")
-                coordinator.startScan()
+                //coordinator.startScan()
             }
             
             if scanForPeripherals == false {
                 print("scanForPeripherals false ")
-                coordinator.stopScan()
+                //coordinator.stopScan()
             }
         }
         
-        .onChange(of: coordinator.scanStateChanged) { state in
+        .onChange(of: bleAdapter.scanStateChanged) { state in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -71,7 +76,7 @@ struct BLEClient<Root: RootRegistry>: View {
             }
         }
         
-        .onChange(of: coordinator.centralStateChanged) { state in
+        .onChange(of: bleAdapter.centralStateChanged) { state in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -81,66 +86,63 @@ struct BLEClient<Root: RootRegistry>: View {
                 )
             }
         }
-        /*.onChange(of: coordinator.peripheralDiscovered) {peripheral in
+        .onChange(of: bleAdapter.peripheralDiscovered) {peripheral in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
                     event: "ble-peripheral-discovered",
-                    value: ["peripheral": peripheral.toJSONString()],
+                    value: ["peripheral": try jsonEncoder.encode(peripheral)],
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
         }
-        .onChange(of: coordinator.peripheralConnected) {
+        .onChange(of: bleAdapter.peripheralConnected) {
             peripheral in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
                     event: "ble-peripheral-connected",
-                    value: ["peripheral": peripheral.toJSONString()],
+                    value: ["peripheral": try jsonEncoder.encode(peripheral)],
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
         }
-        .onChange(of: coordinator.serviceDiscovered) {
+        .onChange(of: bleAdapter.serviceDiscovered) {
             service in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
                     event: "ble-service-discovered",
-                    value: ["service": service.toJSONString()],
+                    value: ["service": try jsonEncoder.encode(service)],
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
         }
         
-        .onChange(of: coordinator.characteristicDiscovered) {
+        .onChange(of: bleAdapter.characteristicDiscovered) {
             characteristic in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
                     event: "ble-characteristic-discovered",
-                    value: ["characteristic": characteristic.toJSONString()],
+                    value: ["characteristic": try jsonEncoder.encode(characteristic)],
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
         }
-        .onChange(of: coordinator.characteristicValueChanged) {
+        .onChange(of: bleAdapter.characteristicValueChanged) {
             characteristicValueUpdate in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
                     event: "ble-characteristic-value-changed",
-                    value: ["update": characteristicValueUpdate.toJSONString()],
+                    value: ["update": try jsonEncoder.encode(characteristicValueUpdate)],
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
         }
-        */
-        
-        
         //.onChange(of: coordinator.centralManager.isScanning) {
-        .onChange(of: coordinator.bleManager.isScanning) { isScanning in
+        /*.onChange(of: bleAdapter.scanStateChanged) { isScanning in
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",
@@ -149,9 +151,9 @@ struct BLEClient<Root: RootRegistry>: View {
                     target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                 )
             }
-        }.onTapGesture {
+        }*/.onTapGesture {
             print("TapGesture: Start scan ... ")
-            coordinator.startScan()
+           // bleAdapter.startScan()
             
             Task {try await $liveElement.context.coordinator.pushEvent(
                 type: "click",
@@ -162,7 +164,7 @@ struct BLEClient<Root: RootRegistry>: View {
             }
         }.onLongPressGesture {
             print("LongPressGesture: Stop scan ... ")
-            coordinator.stopScan()
+            //bleAdapter.stopScan()
             Task {
                 try await $liveElement.context.coordinator.pushEvent(
                     type: "click",

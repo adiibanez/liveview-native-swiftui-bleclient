@@ -4,7 +4,7 @@ import CoreBluetooth
 
 class BLEClientCoordinatorTests: XCTestCase {
     
-    var coordinator: BLEClientCoordinator!
+    var bleAdapter: BLEAdapter!
     //var mockBluetoothManager: BluetoothManager!
     var testSettings: [String: Any]?
 
@@ -12,8 +12,8 @@ class BLEClientCoordinatorTests: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
         
-        let testpath = Bundle(for: type(of: self)).path(forResource: "TestInfo", ofType: "plist")   
-        print("Path: \(testpath)")
+        let testpath = Bundle(for: type(of: self)).path(forResource: "TestInfo", ofType: "plist")
+        //print("Path: \(testpath?.debugDescription)")
         
         if let path = Bundle(for: type(of: self)).path(forResource: "TestInfo", ofType: "plist"),
                    let xml = FileManager.default.contents(atPath: path) {
@@ -31,7 +31,7 @@ class BLEClientCoordinatorTests: XCTestCase {
         
         
         //mockBluetoothManager = BluetoothManager()
-        coordinator = BLEClientCoordinator()
+        bleAdapter = BLEAdapter()
         
         
         
@@ -39,7 +39,7 @@ class BLEClientCoordinatorTests: XCTestCase {
     }
     
     override func tearDownWithError() throws {
-        coordinator = nil
+        bleAdapter = nil
         //mockBluetoothManager = nil
         try super.tearDownWithError()
     }
@@ -61,7 +61,7 @@ class BLEClientCoordinatorTests: XCTestCase {
         // Wait for the expectation to be fulfilled (or timeout)
         wait(for: [expectation], timeout: 2.0) // Timeout after 2 seconds
         
-        coordinator.startScan()
+        bleAdapter.startScan()
         
         
         let expectation2 = XCTestExpectation(description: "Asynchronous operation completion")
