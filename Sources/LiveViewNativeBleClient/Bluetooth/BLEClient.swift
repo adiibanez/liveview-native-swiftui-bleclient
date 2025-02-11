@@ -14,15 +14,19 @@ import LiveViewNativeCore
 @_documentation(visibility: public)
 @LiveElement
 struct BLEClient<Root: RootRegistry>: View {
-    @LiveElementIgnored
-    @StateObject private var coordinator = BLECoordinator()
     
     @LiveElementIgnored
-    var bleAdapter = BLEAdapter()
+    @StateObject private var coordinator = BLECoordinator()
+    //@ObservedObject  private var coordinator:BLECoordinator
+    
+    //@LiveElementIgnored
+    //var bleAdapter = BLEAdapter()
     
     @LiveElementIgnored
     var jsonEncoder = JSONEncoder()
     
+    @LiveElementIgnored
+    private var cancellables: Set<AnyCancellable> = []
     
     @_documentation(visibility: public)
     @LiveAttribute(.init(name: "phx-scan-devices"))
@@ -31,147 +35,140 @@ struct BLEClient<Root: RootRegistry>: View {
     @State private var isConnecting = false
     
     var body: some View {
-            Text("Hello")
-            //$liveElement.children()
-            /*VStack() {
-                
-                List {
-                    Text("List of devices ...")
-                    ForEach(coordinator.peripheralDisplayData) { peripheral in
-                        Text("Peripheral: \(peripheral.name), RSSI: \(peripheral.rssi)")
-                        
-                        /*NavigationLink {
-                         CharacteristicsView(peripheral: discoveredPeripherals(peripheralId: peripheral.id)!, coordinator: coordinator, isConnecting: $isConnecting) // Navigate to CharacteristicsView
-                         } label: {
-                         Text("Peripheral: \(peripheral.name), RSSI: \(peripheral.rssi), Status: \(peripheralStateString(state: peripheral.state))")
-                         }*/
-                    }
+        buildMainView
+            .onReceive(BLEAdapter.shared.scanStateChangedEvent) { state in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-scan-state-changed",
+                        value: state,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
                 }
-                
-            }*/
-        // remote changes
-        //.onChange(of: scanForPeripherals) {
-        .onReceive(Just(scanForPeripherals)) { scanForPeripherals in
-            if scanForPeripherals == true {
-                print("scanForPeripherals true ")
-                //coordinator.startScan()
+            }
+            .onReceive(BLEAdapter.shared.centralStateChangedEvent) { state in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-central-state-changed",
+                        value: state,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
+            }
+            .onReceive(BLEAdapter.shared.peripheralDiscoveredEvent) {(peripheral, rssi) in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-peripheral-discovered",
+                        value: peripheral,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
+            }
+            .onReceive(BLEAdapter.shared.peripheralConnectedEvent) {
+                peripheral in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-peripheral-connected",
+                        value: peripheral,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
+            }
+            .onReceive(BLEAdapter.shared.serviceDiscoveredEvent) {
+                service in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-service-discovered",
+                        value: service,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
             }
             
-            if scanForPeripherals == false {
-                print("scanForPeripherals false ")
-                //coordinator.stopScan()
+            .onReceive(BLEAdapter.shared.characteristicDiscoveredEvent) {
+                characteristic in
+                Task {
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-characteristic-discovered",
+                        value: characteristic,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
             }
-        }
+            //.onChange(of: BLEAdapter.shared.characteristicValueChanged) {
+            .onReceive(BLEAdapter.shared.characteristicValueChangedEvent) {
+                characteristicValueUpdate in
+                Task {
+                    
+                    print("BLECLient onChange: characteristicValueChanged \(characteristicValueUpdate)")
+                    
+                    try await $liveElement.context.coordinator.pushEvent(
+                        type: "click",
+                        event: "ble-characteristic-value-changed",
+                        value: characteristicValueUpdate,
+                        target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
+                    )
+                }
+            }
+
         
-        .onReceive(bleAdapter.scanStateChangedEvent) { state in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-scan-state-changed",
-                    value: ["state": state],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        .onReceive(bleAdapter.centralStateChangedEvent) { state in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-central-state-changed",
-                    value: ["state": state],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        .onReceive(bleAdapter.peripheralDiscoveredEvent) {(peripheral, rssi) in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-peripheral-discovered",
-                    value: ["peripheral": try jsonEncoder.encode(peripheral)],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        .onReceive(bleAdapter.peripheralConnectedEvent) {
-            peripheral in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-peripheral-connected",
-                    value: ["peripheral": try jsonEncoder.encode(peripheral)],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        .onReceive(bleAdapter.serviceDiscoveredEvent) {
-            service in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-service-discovered",
-                    value: ["service": try jsonEncoder.encode(service)],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
         
-        .onReceive(bleAdapter.characteristicDiscoveredEvent) {
-            characteristic in
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-characteristic-discovered",
-                    value: ["characteristic": try jsonEncoder.encode(characteristic)],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        //.onChange(of: bleAdapter.characteristicValueChanged) {
-        .onReceive(bleAdapter.characteristicValueChangedEvent) {
-            characteristicValueUpdate in
-            Task {
-                
-                print("BLECLient onChange: characteristicValueChanged \(characteristicValueUpdate)")
-                
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "ble-characteristic-value-changed",
-                    value: ["update": try jsonEncoder.encode(characteristicValueUpdate)],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }
-        .onTapGesture {
-            print("TapGesture: Start scan ... ")
-           bleAdapter.startScan()
+        
+        peripheralList
+    }
+}
+
+extension BLEClient {
+    private var buildMainView: some View {
+        VStack() {
+            Text("isScanning: \(coordinator.isScannning), Central state: \(coordinator.bleState) Scan state: \(coordinator.isScannning)")
             
-            Task {try await $liveElement.context.coordinator.pushEvent(
-                type: "click",
-                event: "test-event",
-                value: ["onTapGesture": true],
-                target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-            )
+            if !coordinator.isScannning {
+                
+                Button("Scan for devices") {
+                    BLEAdapter.shared.startScan()
+                }.disabled(coordinator.isScannning)
+                //.disabled(coordinator.isScanning)
+            } else {
+                Button("Stop scan") {
+                    BLEAdapter.shared.stopScan()
+                }.disabled(!coordinator.isScannning)
+                //.disabled(coordinator.isScanning)
             }
-        }.onLongPressGesture {
-            print("LongPressGesture: Stop scan ... ")
-            bleAdapter.stopScan()
-            Task {
-                try await $liveElement.context.coordinator.pushEvent(
-                    type: "click",
-                    event: "test-event",
-                    value: ["onLongPressGestrue": true],
-                    target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
-                )
-            }
-        }/*.onReceive($liveElement.context.coordinator.receiveEvent("ble_command")) { (payload: [String: Any]) in
-            print("Testlitest payload: \(payload)")
-        }*/
-        
-        // setup
-        .task {
-            
-        }
+        }/*.onChange(of: coordinator.knownPeripherals) {
+          newValue in
+          print("New value \(newValue)")
+          }*/
     }
     
+    private var peripheralList: some View {
+        List {
+            ForEach(coordinator.peripheralDisplayData.sorted(by: { $0.key < $1.key }), id: \.key) { (id, peripheral) in
+                HStack {
+                    Text(peripheral.name)
+                    Text("RSSI: \(peripheral.rssi)")
+                    
+                    switch peripheral.state {
+                    case .connected:
+                        Button("Disconnect") {
+                            BLEAdapter.shared.disconnect(peripheral_uuid: peripheral.id)
+                        }
+                    case .disconnected:
+                        Button("Connect") {
+                            BLEAdapter.shared.connect(peripheral_uuid: peripheral.id)
+                        }
+                        
+                    default:
+                        Text("State: \(peripheral.state)")
+                    }
+                }
+            }
+        }
+        
+    }
 }

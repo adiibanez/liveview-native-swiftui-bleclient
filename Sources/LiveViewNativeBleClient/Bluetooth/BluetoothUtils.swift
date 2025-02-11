@@ -81,6 +81,9 @@ public class BluetoothUtils {
         "00001824-0000-1000-8000-00805F9B34FB": ("transportDiscovery",.rawData), //Transport Discovery
         "00001804-0000-1000-8000-00805F9B34FB": ("txPower", .int8), //Tx Power
         "0000181C-0000-1000-8000-00805F9B34FB": ("userData",.rawData), //User Data
+        
+        // Pressure sensor service
+        "453B02B0-71A1-11EA-AB12-0800200C9A66": ("pressureSensorService", .int32),
 
 
         // BLE Mock service
@@ -90,6 +93,31 @@ public class BluetoothUtils {
         "00001524-1212-EFDE-1523-785FEABCD123": ("buttonCharacteristic", .uint8),
         "00001525-1212-EFDE-1523-785FEABCD123": ("ledCharacteristic", .uint8),
         "00002A38-0000-1000-8000-00805F9B34FB": ("bodySensorLocation", .uint8)//short UUID mock for body temperature
+    ]
+    
+    
+    public static let defaultServiceUUIDs = [
+        "453B02B0-71A1-11EA-AB12-0800200C9A66",
+        "00001800-0000-1000-8000-00805F9B34FB",
+        "00001811-0000-1000-8000-00805F9B34FB",
+        "00001815-0000-1000-8000-00805F9B34FB",
+        "0000180F-0000-1000-8000-00805F9B34FB",
+        "0000183B-0000-1000-8000-00805F9B34FB",
+        "00001805-0000-1000-8000-00805F9B34FB",
+        "0000180A-0000-1000-8000-00805F9B34FB",
+        "0000183C-0000-1000-8000-00805F9B34FB",
+        "0000181A-0000-1000-8000-00805F9B34FB",
+        "00001801-0000-1000-8000-00805F9B34FB",
+        "00001812-0000-1000-8000-00805F9B34FB",
+        "00001802-0000-1000-8000-00805F9B34FB",
+        "00001821-0000-1000-8000-00805F9B34FB",
+        "00001803-0000-1000-8000-00805F9B34FB",
+        "00001819-0000-1000-8000-00805F9B34FB",
+        "00001825-0000-1000-8000-00805F9B34FB",
+        "00001824-0000-1000-8000-00805F9B34FB",
+        "00001804-0000-1000-8000-00805F9B34FB",
+        "0000181C-0000-1000-8000-00805F9B34FB",
+        "00001523-1212-EFDE-1523-785FEABCD123"
     ]
 
     class func name(for uuid: CBUUID) -> String {
@@ -185,6 +213,27 @@ public class BluetoothUtils {
         case .rawData:
             return data // Return the raw Data
         }
+    }
+    
+    
+    static func stringToUUIDArray(uuid_strings: [String]) -> [UUID] {
+        var identifiersUUID: [UUID] = []
+        
+        uuid_strings.forEach {
+            var test: UUID = UUID(uuidString: String($0))!
+            identifiersUUID.append(test)
+        }
+        return identifiersUUID
+    }
+    
+    static func stringToCBUUIDArray(uuid_strings: [String]) -> [CBUUID] {
+        var identifiersUUID: [CBUUID] = []
+        
+        uuid_strings.forEach {
+            var test: CBUUID = CBUUID(string: String($0))
+            identifiersUUID.append(test)
+        }
+        return identifiersUUID
     }
 
 
@@ -291,5 +340,45 @@ extension Data {
 
     var utf8StringValue: String? {
         return String(data: self, encoding: .utf8)
+    }
+}
+
+
+class RSSIAverageCalculator {
+    private var container: [UUID: [NSNumber]] = [:]
+    private let maxContainerSize = 4
+    
+    func getAverageRSSI(_ uuid: UUID, rssi: NSNumber) -> NSNumber? {
+        guard Int(truncating: rssi) < 0 else { return nil } // Filter RSSI with value 0
+        add(uuid, rssi)
+        return countAverage(uuid, rssi)
+    }
+}
+
+private extension RSSIAverageCalculator {
+    func add(_ uuid: UUID, _ rssi: NSNumber) {
+        if container[uuid] == nil { container[uuid] = [rssi] }
+        else { container[uuid]?.append(rssi) }
+    }
+    func countAverage(_ uuid: UUID, _ rssi: NSNumber) -> NSNumber? {
+        guard let rssiItems = container[uuid] else { return nil }
+        switch rssiItems.count {
+            case let x where x >= maxContainerSize: // Return an average value for containerSize elements
+                cleanContainer(uuid)
+                return countAverage(rssiItems + [rssi])
+            
+            default: // Continue stack received elements
+                return nil
+        }
+    }
+}
+
+private extension RSSIAverageCalculator {
+    func countAverage(_ rssi: [NSNumber]) -> NSNumber {
+        let average = rssi.reduce(0.0) { $0 + Double(truncating: $1) / Double(rssi.count) }
+        return NSNumber(value: average)
+    }
+    func cleanContainer(_ uuid: UUID) {
+        container[uuid] = []
     }
 }
