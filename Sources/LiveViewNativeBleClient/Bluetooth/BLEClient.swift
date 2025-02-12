@@ -89,13 +89,13 @@ struct BLEClient<Root: RootRegistry>: View {
                 }
             }
             
-            .onReceive(BLEAdapter.shared.characteristicDiscoveredEvent) {
-                characteristic in
+            .onReceive(BLEAdapter.shared.characteristicsDiscoveredEvent) {
+                characteristicsDiscovered in
                 Task {
                     try await $liveElement.context.coordinator.pushEvent(
                         type: "click",
-                        event: "ble-characteristic-discovered",
-                        value: characteristic,
+                        event: "ble-characteristics-discovered",
+                        value: characteristicsDiscovered,
                         target: $liveElement.element.attributeValue(for: "phx-target").flatMap(Int.init)
                     )
                 }
@@ -116,7 +116,6 @@ struct BLEClient<Root: RootRegistry>: View {
                 }
             }
 
-        
         
         
         peripheralList

@@ -61,7 +61,7 @@ final class BLECoordinator: NSObject, ObservableObject {
     override init() {
         super.init()
         
-        BLEAdapter.shared.getKnownPeripherals(identifiers: BluetoothUtils.defaultServiceUUIDs).forEach{
+        BLEAdapter.shared.getConnectedPeripherals(identifiers: BluetoothUtils.defaultServiceUUIDs).forEach{
             peripheralDisplayData[$0.id] = $0
         }
         

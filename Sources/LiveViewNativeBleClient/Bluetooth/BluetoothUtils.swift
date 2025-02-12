@@ -10,7 +10,7 @@ public class BluetoothUtils {
     static func expandShortUUID(_ uuidString: String) -> String {
         if uuidString.count == 4 {
             let expandedUuidString = "0000\(uuidString)-0000-1000-8000-00805F9B34FB".uppercased()
-            print("Expanded: uuidString to \(expandedUuidString)")
+            //print("Expanded: uuidString to \(expandedUuidString)")
             return expandedUuidString
         } else {
             return uuidString.uppercased()
@@ -88,6 +88,7 @@ public class BluetoothUtils {
 
         // BLE Mock service
         "00001523-1212-EFDE-1523-785FEABCD123": ("nordicBlinkyService",.rawData),
+        "0000180D-0000-1000-8000-00805F9B34FB": ("mockHeartrate", .rawData),
 
         // BLE Mock characteristics
         "00001524-1212-EFDE-1523-785FEABCD123": ("buttonCharacteristic", .uint8),
@@ -144,7 +145,7 @@ public class BluetoothUtils {
         return uuidMap[expandedUuidString] != nil
     }
 
-    private class func decodeHeartRate(data: Data) -> String? {
+    private class func decodeHeartRate(data: Data) -> Int? {
         print("Heartrate data count: \(data.count)")
         guard data.count > 0 else {
             print("Data is too short to read heartrate (no flags)")
@@ -161,7 +162,7 @@ public class BluetoothUtils {
             }
             let heartRateValue = data[1] // Extract uint8
             print("Decoded uint8 heartrate: \(heartRateValue)")
-            return String(describing: heartRateValue)
+            return Int(heartRateValue)
         } else { // uint16 format
             guard data.count >= 3 else {
                 print("Data is too short for uint16 heartrate (flags set, but no 16-bit value)")
@@ -170,7 +171,7 @@ public class BluetoothUtils {
             let heartRateValue: UInt16? = data.subdata(in: 1..<3).uint16Value // Attempt to extract UInt16
             if let heartRateValue = heartRateValue {
                 print("Decoded uint16 heartrate: \(heartRateValue)")
-                return String(describing: heartRateValue)
+                return Int(heartRateValue)
             } else {
                 print("Failed to extract uint16 value")
                 return nil
@@ -178,42 +179,42 @@ public class BluetoothUtils {
         }
     }
 
-    class func decodeValue(for uuid: CBUUID, data: Data) -> Any? {
-        if expandShortUUID(uuid.uuidString) == CBUUID(string: "00002a37-0000-1000-8000-00805f9b34fb").uuidString {
-            // Decode as heart rate
-            return decodeHeartRate(data: data) //decode with custom method
-        }
-        
-        guard let dataType = dataType(for: uuid) else {
-            print("Unknown data type for UUID: \(uuid)")
-            return nil
-        }
-        
-        switch dataType {
-        case .uint8:
-            return data.uint8Value
-        case .uint16:
-            return data.uint16Value
-        case .uint32:
-            return data.uint32Value
-        case .int8:
-            return data.int8Value
-        case .int16:
-            return data.int16Value
-        case .int32:
-            return data.int32Value
-        case .float:
-            return data.floatValue
-        case .double:
-            return data.doubleValue
-        case .boolean:
-            return data.booleanValue
-        case .utf8String:
-            return data.utf8StringValue
-        case .rawData:
-            return data // Return the raw Data
-        }
-    }
+    class func decodeValue(for uuid: CBUUID, data: Data) -> CharacteristicValue? {
+           if expandShortUUID(uuid.uuidString) == expandShortUUID(CBUUID(string: "2A37").uuidString) {
+               // Decode as heart rate
+               return .int(decodeHeartRate(data: data)!)
+           }
+
+           guard let dataType = dataType(for: uuid) else {
+               print("Unknown data type for UUID: \(uuid)")
+               return nil
+           }
+
+           switch dataType {
+           case .uint8:
+               return .int(Int(data.uint8Value!))
+           case .uint16:
+               return .int(Int(data.uint16Value!))
+           case .uint32:
+               return .int(Int(data.uint32Value!))
+           case .int8:
+               return .int(Int(data.int8Value!))
+           case .int16:
+               return .int(Int(data.int16Value!))
+           case .int32:
+               return .int(Int(data.int32Value!))
+           case .float:
+               return .double(Double(data.floatValue!))
+           case .double:
+               return .double(data.doubleValue!)
+           case .boolean:
+               return .bool(data.booleanValue!)
+           case .utf8String:
+               return .string(data.utf8StringValue!)
+           case .rawData:
+               return .data(data)
+           }
+       }
     
     
     static func stringToUUIDArray(uuid_strings: [String]) -> [UUID] {

@@ -29,10 +29,11 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     let didConnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
     let didFailToConnectPeripheral = PassthroughSubject<(CBPeripheral, Error?), Never>()
     let didDisconnectPeripheral = PassthroughSubject<CBPeripheral, Never>()
-    let didReceiveData = PassthroughSubject<(CBPeripheral, CBUUID, String), Never>()
+    let didReceiveData = PassthroughSubject<(CBPeripheral, CBUUID, CharacteristicValue), Never>()
     let didUpdateRSSI = PassthroughSubject<(CBPeripheral, NSNumber), Never>()
     
-    let didDiscoverCharacteristic = PassthroughSubject<(CBPeripheral, CBService, CBCharacteristic), Never>()
+    let didDiscoverService = PassthroughSubject<(CBPeripheral, CBService), Never>()
+    let didDiscoverCharacteristics = PassthroughSubject<(CBPeripheral, CBService, [CBCharacteristic]), Never>()
     
     private var serviceUUID: CBUUID?
     private var characteristicUUID: CBUUID?
@@ -130,7 +131,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         
         print("BluetoothManager Scanning for peripherals...")
         discoveredPeripherals.removeAll() // Clear existing peripherals
-        centralManager.scanForPeripherals(withServices: services, options: nil) // Scan all services
+        centralManager.scanForPeripherals(withServices: services, options: nil)
+        //centralManager.scanForPeripherals(withServices: [])// Scan all services
         didStartScan.send()
     }
     
@@ -178,10 +180,10 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         //print("BluetoothManager Discovered \(peripheral.name ?? "Unknown Device") RSSI: \(RSSI)") // , advertisementData: \(advertisementData)
         discoveredPeripherals[peripheral.identifier] = peripheral
         
-        guard let name = peripheral.name, prefixes.contains(where: { name.hasPrefix($0) }) else{
+        /*guard let name = peripheral.name, prefixes.contains(where: { name.hasPrefix($0) }) else{
             //print("BluetoothManager Ignoring peripheral \(peripheral.name ?? "Unnamed"), since does not start with a known prefix \(prefixes)")
             return
-        }
+        }*/
         
         didDiscoverPeripheral.send((peripheral, RSSI))
         
@@ -215,8 +217,6 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         print("BluetoothManager Failed to connect to: \(peripheral.name ?? "Unknown Device") with error: \(String(describing: error?.localizedDescription))")
         peripheralConnectionState[peripheral.identifier] = "Failed to Connect" // Update state
-        
-        
         didFailToConnectPeripheral.send((peripheral, error))
     }
     
@@ -245,10 +245,12 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         for service in services {
             print("BluetoothManager Discovered service: \(service.uuid) for peripheral: \(peripheral.name ?? "Unnamed")")
             serviceDictionary[service.uuid] = service
+            didDiscoverService.send((peripheral, service))
             peripheral.discoverCharacteristics(nil, for: service)
         }
         
         discoveredServices[peripheral.identifier] = serviceDictionary
+        
 
     }
     
@@ -269,7 +271,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             
             characteristicsDictionary[characteristic.uuid] = characteristic
             
-            // initial read for slow notifiers
+            // initial read for lazy notifiers
             if characteristic.properties.contains(.read) {
                 peripheral.readValue(for: characteristic)
             }
@@ -278,9 +280,9 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             if characteristic.properties.contains(.notify) {
                 peripheral.setNotifyValue(true, for: characteristic) //This method should only becalled on Characteristics that have
             }
-            // notify
-            didDiscoverCharacteristic.send((peripheral, service, characteristic))
         }
+        
+        didDiscoverCharacteristics.send((peripheral, service, characteristics))
         //This now associates what characteristic to what service on what peripheral
         discoveredCharacteristics[peripheral.identifier]?[service.uuid] = characteristicsDictionary
     }
@@ -296,21 +298,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             return
         }
         
-        var stringValue: String? = nil
-        
         let uuid = characteristic.uuid
         
         let characteristicName = BluetoothUtils.name(for: uuid)
         
         if let decoded = BluetoothUtils.decodeValue(for: uuid, data: data) {
-            stringValue = String(describing: decoded) // Convert to string
+            didReceiveData.send((peripheral, characteristic.uuid, decoded))
         } else {
             print("BluetoothManager Cannot decode data from \(uuid.uuidString)")
-        }
-        
-        if let stringValue = stringValue {
-            //print("BluetoothManager Got characteristics update for \(characteristicName) value: \(stringValue) \(characteristic) ")
-            didReceiveData.send((peripheral, characteristic.uuid, stringValue))
         }
     }
     
