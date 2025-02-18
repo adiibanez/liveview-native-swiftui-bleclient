@@ -19,9 +19,6 @@ struct BLEClient<Root: RootRegistry>: View {
     @StateObject private var coordinator = BLECoordinator()
     //@ObservedObject  private var coordinator:BLECoordinator
     
-    //@LiveElementIgnored
-    //var bleAdapter = BLEAdapter()
-    
     @LiveElementIgnored
     var jsonEncoder = JSONEncoder()
     
@@ -29,12 +26,26 @@ struct BLEClient<Root: RootRegistry>: View {
     private var cancellables: Set<AnyCancellable> = []
     
     @_documentation(visibility: public)
-    @LiveAttribute(.init(name: "phx-scan-devices"))
-    private var scanForPeripherals: Bool = false
+    @LiveAttribute(.init(name: "phx-scan-peripherals"))
+    private var phxBleScan: Bool = false
     
     @State private var isConnecting = false
     
     var body: some View {
+        $liveElement.children().onChange(of: phxBleScan) {
+            if $0 {
+                Task {
+                    print("Remote scan requested")
+                    BLEAdapter.shared.startScan()
+                }
+            } else {
+                
+                Task {
+                    print("Remote scan stop requested")
+                    BLEAdapter.shared.stopScan()
+                }
+            }
+        }
         buildMainView
             .onReceive(BLEAdapter.shared.scanStateChangedEvent) { state in
                 Task {
@@ -105,7 +116,7 @@ struct BLEClient<Root: RootRegistry>: View {
                 characteristicValueUpdate in
                 Task {
                     
-                    print("BLECLient onChange: characteristicValueChanged \(characteristicValueUpdate)")
+                    //print("BLECLient onChange: characteristicValueChanged \(characteristicValueUpdate)")
                     
                     try await $liveElement.context.coordinator.pushEvent(
                         type: "click",
@@ -115,9 +126,6 @@ struct BLEClient<Root: RootRegistry>: View {
                     )
                 }
             }
-
-        
-        
         peripheralList
     }
 }
@@ -125,19 +133,16 @@ struct BLEClient<Root: RootRegistry>: View {
 extension BLEClient {
     private var buildMainView: some View {
         VStack() {
-            Text("isScanning: \(coordinator.isScannning), Central state: \(coordinator.bleState) Scan state: \(coordinator.isScannning)")
+            Text("phxScan: \(self.phxBleScan), isScanning: \(coordinator.isScannning), Central state: \(coordinator.bleState) Scan state: \(coordinator.isScannning)")
             
             if !coordinator.isScannning {
-                
                 Button("Scan for devices") {
                     BLEAdapter.shared.startScan()
                 }.disabled(coordinator.isScannning)
-                //.disabled(coordinator.isScanning)
             } else {
                 Button("Stop scan") {
                     BLEAdapter.shared.stopScan()
                 }.disabled(!coordinator.isScannning)
-                //.disabled(coordinator.isScanning)
             }
         }/*.onChange(of: coordinator.knownPeripherals) {
           newValue in
