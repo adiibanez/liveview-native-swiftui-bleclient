@@ -10,21 +10,21 @@ final class BLECoordinator: NSObject, ObservableObject {
     var knownPeripherals: [String: PeripheralDisplayData] {
         get {
             let decoder = JSONDecoder()
-            if let data = knownPeripheralsData.data(using: .utf8), // Convert String to Data
-               let decoded = try? decoder.decode([String: PeripheralDisplayData].self, from: data) { // Decode the Data
+            if let data = knownPeripheralsData.data(using: .utf8),
+               let decoded = try? decoder.decode([String: PeripheralDisplayData].self, from: data) {
                 return decoded
             } else {
-                print("Decoding failed") // Add some error logging
-                return [:] // Return an empty array if decoding fails
+                print("Decoding failed")
+                return [:]
             }
         }
         set {
             let encoder = JSONEncoder()
-            if let data = try? encoder.encode(newValue), // Encode into Data
-               let encodedString = String(data: data, encoding: .utf8) { // Convert Data to String
+            if let data = try? encoder.encode(newValue),
+               let encodedString = String(data: data, encoding: .utf8) {
                 knownPeripheralsData = encodedString
             } else {
-                print("Encoding failed") // Add some error logging
+                print("Encoding failed")
             }
         }
     }
@@ -78,7 +78,6 @@ final class BLECoordinator: NSObject, ObservableObject {
                 self.scanState = scanState
             })
             .store(in: &cancellables)
-        //.assign(to: &$scanState)
         
         BLEAdapter.shared.centralStateChangedEvent
             .sink(receiveValue: {
@@ -141,7 +140,7 @@ final class BLECoordinator: NSObject, ObservableObject {
                 }
                 
                 print("BLECoordinator peripheral disconnected: \(peripheral)")
-                removePeripheral(uuid: peripheral.id)
+                addPeripheral(peripheral: peripheral)
                 
             })
             .store(in: &cancellables)

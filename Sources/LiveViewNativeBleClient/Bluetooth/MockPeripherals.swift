@@ -64,7 +64,6 @@ extension CBMServiceMock {
             .buttonCharacteristic,
             .ledCharacteristic
     )
-    
 }
 
 private class BlinkyCBMPeripheralSpecDelegate: CBMPeripheralSpecDelegate {
@@ -185,14 +184,12 @@ let hrm = CBMPeripheralSpec
         mtu: 251)
     .build()
 
-
-
 var randomHRMUpdatesTimer: Timer?
 
 func simulateRandomHRMUpdates(hrm: CBMPeripheralSpec, hrmHeartrateCharacteristic: CBMCharacteristicMock) {
     
     randomHRMUpdatesTimer = Timer.scheduledTimer(withTimeInterval: Double.random(in: 1...3), repeats: true) { _ in
-        let heartRate = UInt16.random(in: 60...100) // Range for UInt16 (can be wider)
+        let heartRate = UInt16.random(in: 30...150) // Range for UInt16 (can be wider)
         let heartRateBytes = heartRate.littleEndian.bytes // Get bytes in little-endian order
 
         // Set the flag to indicate uint16 format (Bit 0 = 1)
@@ -220,9 +217,6 @@ extension UInt16 {
         ]
     }
 }
-
-
-// MARK: - Physical Web Beacon
 
 let thingy = CBMPeripheralSpec
     .simulatePeripheral(proximity: .outOfRange)
@@ -252,8 +246,6 @@ let thingy = CBMPeripheralSpec
         withInterval: 0.100,
         delay: 2.0)
     .build()
-
-// MARK: - A device with 2 batteries
 
 extension CBMUUID {
     static let batteryService             = CBMUUID(string: "180F")
@@ -296,7 +288,6 @@ extension CBMServiceMock {
         type: .batteryService, primary: true,
         characteristics: .secondaryBatteryLevelCharacteristic
     )
-    
 }
 
 private class PowerPackCBMPeripheralSpecDelegate: CBMPeripheralSpecDelegate {

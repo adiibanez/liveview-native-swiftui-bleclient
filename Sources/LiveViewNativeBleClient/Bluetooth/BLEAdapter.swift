@@ -30,7 +30,7 @@ final class BLEAdapter: NSObject, ObservableObject {
     let bleCommandRegistry = BLECommandRegistry()
     
     var bleManager = BluetoothManager()
-    private var cancellables: Set<AnyCancellable> = [] // Store Combine subscriptions
+    private var cancellables: Set<AnyCancellable> = []
     
     override init() {
         super.init()
@@ -143,7 +143,6 @@ final class BLEAdapter: NSObject, ObservableObject {
     }
     
     func getConnectedPeripherals(identifiers: [String]) -> [PeripheralDisplayData] {
-        
         let peripherals = bleManager.getKnownPeripherals(identifiers: BluetoothUtils.stringToUUIDArray(uuid_strings: identifiers))
         return peripherals.map { peripheral in
             PeripheralDisplayData(peripheral: peripheral)
@@ -195,13 +194,10 @@ final class BLEAdapter: NSObject, ObservableObject {
         
         let characteristicsDiscoveryData = CharacteristicsDiscoveryDisplayData.init(peripheralId: peripheral.identifier.uuidString, serviceId: service.uuid.uuidString, characteristics: characteristicsDisplayData)
         
-        
         characteristicsDiscoveredEvent.send(characteristicsDiscoveryData)
-        //peripheralDisconnectedEvent.send(PeripheralDisplayData.init(peripheral: peripheral))
     }
     
     private func handleDidReceiveData(_ peripheral: CBPeripheral, _ characteristicUUID: CBUUID, _ value: CharacteristicValue) {
-        //print("BLEAdapter: Received data from \(peripheral.name ?? "Unknown Device"), characteristic: \(characteristicUUID), value: \(value)")
         characteristicValueChangedEvent.send(CharacteristicValueDisplayData.init(peripheral: peripheral, characteristicUUID: characteristicUUID, value: value))
     }
     
@@ -309,17 +305,14 @@ struct ServiceDisplayData: Identifiable, Hashable, Codable {
     let name: String
     let isPrimary: Bool
     let peripheralID: String
-    //let characteristics: [CharacteristicDisplayData]
-
+    
     init(peripheral: CBPeripheral, service: CBService) {
         self.id = service.uuid.uuidString
-        self.name = BluetoothUtils.name(for: service.uuid) // Or fetch a more descriptive name
+        self.name = BluetoothUtils.name(for: service.uuid)
         self.isPrimary = service.isPrimary
         self.peripheralID = peripheral.identifier.uuidString
-        //self.characteristics = [] // Initialize empty; you'd populate this later
     }
 
-    // MARK: - Decoding
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -369,7 +362,6 @@ struct CharacteristicDisplayData: Identifiable, Hashable, Equatable, Codable {
     let uuid: String
     let name: String
 
-    // MARK: - Bluetooth Initializer
     init(peripheral: CBPeripheral, service: CBService, characteristic: CBCharacteristic) {
         self.id = characteristic.uuid.uuidString
         self.peripheralName = peripheral.name ?? "Unnamed Peripheral"
@@ -379,7 +371,6 @@ struct CharacteristicDisplayData: Identifiable, Hashable, Equatable, Codable {
         self.name = BluetoothUtils.name(for: characteristic.uuid) // Or fetch a more descriptive name
     }
 
-    // MARK: - Decoding
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -409,7 +400,6 @@ struct CharacteristicValueDisplayData: Identifiable, Hashable, Equatable, Codabl
     let name: String
     let value: CharacteristicValue
 
-    // MARK: - Bluetooth Initializer
     init(peripheral: CBPeripheral, characteristicUUID: CBUUID, value: CharacteristicValue) {
         self.id = peripheral.identifier.uuidString
         self.timestamp = Date().timeIntervalSince1970
@@ -420,7 +410,6 @@ struct CharacteristicValueDisplayData: Identifiable, Hashable, Equatable, Codabl
         self.value = value
     }
 
-    // MARK: - Decoding
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)

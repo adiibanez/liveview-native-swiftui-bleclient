@@ -18,7 +18,6 @@ public class BluetoothUtils {
     }
 
     static var uuidMap: [String: (String, DataType)] = [
-        // MARK: - Characteristics
         "00002A43-0000-1000-8000-00805F9B34FB": ("alertCategoryId", .uint8), // Alert Category ID
         "00002A06-0000-1000-8000-00805F9B34FB": ("alertLevel", .uint8), // Alert Level
         "00002A3F-0000-1000-8000-00805F9B34FB": ("alertStatus", .uint8), // Alert Status
@@ -96,7 +95,6 @@ public class BluetoothUtils {
         "00002A38-0000-1000-8000-00805F9B34FB": ("bodySensorLocation", .uint8)//short UUID mock for body temperature
     ]
     
-    
     public static let defaultServiceUUIDs = [
         "453B02B0-71A1-11EA-AB12-0800200C9A66",
         "00001800-0000-1000-8000-00805F9B34FB",
@@ -133,7 +131,6 @@ public class BluetoothUtils {
         let expandedUuidString = expandShortUUID(uuidString)
         return uuidMap[expandedUuidString]?.1
     }
-
 
     class var allMappings : [String: (String, DataType)] {
         return uuidMap
@@ -181,7 +178,6 @@ public class BluetoothUtils {
 
     class func decodeValue(for uuid: CBUUID, data: Data) -> CharacteristicValue? {
            if expandShortUUID(uuid.uuidString) == expandShortUUID(CBUUID(string: "2A37").uuidString) {
-               // Decode as heart rate
                return .int(decodeHeartRate(data: data)!)
            }
 
@@ -237,7 +233,6 @@ public class BluetoothUtils {
         return identifiersUUID
     }
 
-
     static func printCharacteristicProperties(characteristic: CBCharacteristic, peripheral: CBPeripheral) {
         let properties = characteristic.properties
 
@@ -273,7 +268,6 @@ public class BluetoothUtils {
         }
     }
 }
-
 
 extension Data {
     var uint8Value: UInt8? {
@@ -343,7 +337,6 @@ extension Data {
         return String(data: self, encoding: .utf8)
     }
 }
-
 
 class RSSIAverageCalculator {
     private var container: [UUID: [NSNumber]] = [:]

@@ -5,19 +5,12 @@ import LiveViewNative
 import CoreBluetooth
 import LiveViewNativeCore
 
-/// A native Bluetooth Low Energy client view. It can be rendered in a LiveViewNative app using the `BLEClient` element.
-///
-/// ## Attributes
-///  * ``scanForPeripherals``
-///  * ``stopScan``
-///
 @_documentation(visibility: public)
 @LiveElement
 struct BLEClient<Root: RootRegistry>: View {
     
     @LiveElementIgnored
     @StateObject private var coordinator = BLECoordinator()
-    //@ObservedObject  private var coordinator:BLECoordinator
     
     @LiveElementIgnored
     var jsonEncoder = JSONEncoder()
@@ -144,10 +137,7 @@ extension BLEClient {
                     BLEAdapter.shared.stopScan()
                 }.disabled(!coordinator.isScannning)
             }
-        }/*.onChange(of: coordinator.knownPeripherals) {
-          newValue in
-          print("New value \(newValue)")
-          }*/
+        }
     }
     
     private var peripheralList: some View {
@@ -173,6 +163,5 @@ extension BLEClient {
                 }
             }
         }
-        
     }
 }

@@ -136,7 +136,6 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         didStartScan.send()
     }
     
-    
     func connect(peripheral_uuid: UUID) {
         guard let peripheral = discoveredPeripherals[peripheral_uuid] else {
             print("Peripheral with UUID \(peripheral_uuid) not found.")
@@ -145,8 +144,6 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         centralManager.connect(peripheral)
         print("Connecting to peripheral with UUID \(peripheral_uuid)")
     }
-    
-    
     
     func disconnect(peripheral_uuid: UUID) {
         guard let peripheral = discoveredPeripherals[peripheral_uuid] else {
@@ -313,9 +310,4 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         print("BluetoothManager Updated RSSI for \(peripheral) RSSI: \(rssi)")
         didUpdateRSSI.send((peripheral, rssi))
     }
-
-    /*func peripheralDidUpdateRSSI(_ peripheral: CBPeripheral, error: (any Error)?) {
-        print("BluetoothManager Updated RSSI for \(peripheral) RSSI: \(peripheral.rssi)")
-        didUpdateRSSI.send(peripheral)
-    }*/
 }

@@ -133,13 +133,11 @@ class BLECommandRegistry: CommandRegistry {
     }
 }
 
-// Example payload for simulating a proximity change
 struct ProximityChangePayload: Decodable {
     let peripheralId: String
     let proximity: String  // "immediate", "near", "far"
 }
 
-// Example payload for simulating a value update
 struct ValueUpdatePayload: Decodable {
     let peripheralId: String
     let characteristicUuid: String
